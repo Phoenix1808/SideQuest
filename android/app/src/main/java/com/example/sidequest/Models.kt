@@ -8,6 +8,7 @@ package com.example.sidequest
 data class QuestRequest(
     val lat: Double,
     val lon: Double,
+    val tzOffsetMin: Int,   // lets the server show sunrise/sunset in local time
     val count: Int = 3,
     val radiusM: Int = 1500
 )
@@ -22,7 +23,7 @@ data class Place(
 )
 
 data class Weather(
-    val tempC: Double,
+    val tempC: Double?,   // null when every weather service was unavailable
     val summary: String,
     val emoji: String,
     val isDay: Boolean,

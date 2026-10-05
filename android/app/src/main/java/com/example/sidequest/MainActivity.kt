@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
 
@@ -202,7 +203,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 showStatus(getString(R.string.making_quests), loading = true)
-                val response = ApiClient.quests(QuestRequest(location.latitude, location.longitude))
+                val offsetMin = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+                val response = ApiClient.quests(QuestRequest(location.latitude, location.longitude, offsetMin))
                 val newBoard = QuestBoard(QuestStore.dayKey(), response.weather, response.quests.map { QuestState(it) })
                 store.saveBoard(newBoard)
                 showBoard(newBoard)
@@ -240,7 +242,12 @@ class MainActivity : AppCompatActivity() {
 
         val weather = newBoard.weather
         if (weather != null) {
-            weatherText.text = getString(R.string.weather_line, weather.emoji, weather.tempC, weather.summary)
+            val temp = weather.tempC
+            weatherText.text = if (temp != null) {
+                getString(R.string.weather_line, weather.emoji, temp, weather.summary)
+            } else {
+                "${weather.emoji} ${weather.summary}"
+            }
             sunText.text = getString(R.string.sun_line, weather.sunrise, weather.sunset)
             weatherCard.visibility = View.VISIBLE
         } else {

@@ -31,6 +31,9 @@ android {
             optimization {
                 enable = false
             }
+            // Hackathon build: signed with the local debug key so it installs over the dev build.
+            // Use a real upload key before publishing to Play.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

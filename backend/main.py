@@ -5,7 +5,8 @@ and checks the photo proof with an open-weight vision model.
 Everything it relies on is open:
   * Open-weight LLM (Qwen 3.8 27B, text + vision) via any OpenAI-compatible endpoint
   * OpenStreetMap data via the Overpass API (nearby parks, water, viewpoints...)
-  * Open-Meteo (open-source weather + sunrise/sunset, no API key)
+  * Open-Meteo (open-source weather, no API key), with MET Norway's open data as backup
+  * Sunrise/sunset computed locally (NOAA algorithm), so day/night is always known
 
 Swapping the model or provider is a config change:
     LLM_BASE_URL=https://api.groq.com/openai/v1   LLM_MODEL=qwen/qwen3.8-27b
@@ -15,6 +16,7 @@ Swapping the model or provider is a config change:
 import asyncio
 import base64
 import json
+import logging
 import math
 import os
 import random
@@ -22,6 +24,7 @@ import re
 import secrets
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from dotenv import load_dotenv
@@ -50,7 +53,11 @@ PLACES_BUDGET_S = 15          # how long a quest request waits for map data
 PLACES_TTL_S = 24 * 60 * 60   # parks don't move - reuse map data for a day
 MAX_RETRIES = 3               # rate-limit retries per model call
 MAX_RETRY_WAIT_S = 45         # longest we'll quietly wait out a rate limit
-USER_AGENT = "SideQuest/1.0 (Hacktoberfest 2026 open-source AI project)"
+# MET Norway asks every client to identify itself; Render sets RENDER_EXTERNAL_URL
+USER_AGENT = f"SideQuest/1.0 (+{os.getenv('RENDER_EXTERNAL_URL', 'local development')})"
+
+# Shows up in the Render logs
+log = logging.getLogger("uvicorn.error")
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
 
 app = FastAPI(title="Side Quest API", version="1.0.0")
@@ -68,6 +75,7 @@ class QuestRequest(BaseModel):
     lon: float
     count: int = 3
     radius_m: int = 1500
+    tz_offset_min: int | None = None   # the phone's UTC offset, e.g. 330 for India
 
 
 class Place(BaseModel):
@@ -80,7 +88,7 @@ class Place(BaseModel):
 
 
 class Weather(BaseModel):
-    temp_c: float
+    temp_c: float | None
     summary: str
     emoji: str
     is_day: bool
@@ -248,10 +256,12 @@ out center tags 150;
                 for next_done in asyncio.as_completed(tasks):
                     try:
                         elements = await next_done
-                    except (httpx.HTTPError, RuntimeError, json.JSONDecodeError):
+                    except (httpx.HTTPError, RuntimeError, json.JSONDecodeError) as e:
+                        log.warning("overpass mirror failed: %s", e or type(e).__name__)
                         continue
                     _places_cache[key] = (time.time(), elements)
                     return elements
+                log.warning("all overpass mirrors failed for %s", key)
                 return []
             finally:
                 for task in tasks:
@@ -311,6 +321,54 @@ async def nearby_places(lat: float, lon: float, radius: int) -> list[Place]:
     return places
 
 
+# ---------- sun ----------
+# Sunrise/sunset are computed here instead of fetched, so day/night - which the
+# quest safety rules depend on - is always known, even if every weather API is down.
+# Algorithm: NOAA / "Almanac for Computers" (accurate to about a minute).
+
+def _sun_event_utc(lat: float, lon: float, day_of_year: int, rising: bool) -> float | None:
+    """UTC hour of sunrise or sunset, or None if the sun doesn't rise/set that day."""
+    lng_hour = lon / 15
+    t = day_of_year + ((6 if rising else 18) - lng_hour) / 24
+    m = 0.9856 * t - 3.289
+    sun_lon = (m + 1.916 * math.sin(math.radians(m)) + 0.020 * math.sin(math.radians(2 * m)) + 282.634) % 360
+    ra = math.degrees(math.atan(0.91764 * math.tan(math.radians(sun_lon)))) % 360
+    ra = (ra + (sun_lon // 90) * 90 - (ra // 90) * 90) / 15
+    sin_dec = 0.39782 * math.sin(math.radians(sun_lon))
+    cos_dec = math.cos(math.asin(sin_dec))
+    cos_h = (math.cos(math.radians(90.833)) - sin_dec * math.sin(math.radians(lat))) / (
+        cos_dec * math.cos(math.radians(lat))
+    )
+    if not -1 <= cos_h <= 1:
+        return None
+    h = (360 - math.degrees(math.acos(cos_h)) if rising else math.degrees(math.acos(cos_h))) / 15
+    local_mean = h + ra - 0.06571 * t - 6.622
+    return (local_mean - lng_hour) % 24
+
+
+def sun_info(lat: float, lon: float, offset_min: int) -> tuple[str, str, str, bool]:
+    """(local time, sunrise, sunset, is_day) as HH:MM strings in the player's timezone."""
+    local = datetime.now(timezone.utc) + timedelta(minutes=offset_min)
+    day = local.timetuple().tm_yday
+    now_min = local.hour * 60 + local.minute
+
+    def to_local_min(utc_hour: float | None) -> int | None:
+        return None if utc_hour is None else round(utc_hour * 60 + offset_min) % 1440
+
+    def fmt(minutes: int | None) -> str:
+        return "--:--" if minutes is None else f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+    rise = to_local_min(_sun_event_utc(lat, lon, day, rising=True))
+    sets = to_local_min(_sun_event_utc(lat, lon, day, rising=False))
+    if rise is None or sets is None:
+        is_day = True   # polar day/night - not worth more code for this app
+    elif rise < sets:
+        is_day = rise <= now_min < sets
+    else:
+        is_day = now_min >= rise or now_min < sets
+    return fmt(now_min), fmt(rise), fmt(sets), is_day
+
+
 # ---------- weather ----------
 
 def weather_from_code(code: int) -> tuple[str, str]:
@@ -333,35 +391,77 @@ def weather_from_code(code: int) -> tuple[str, str]:
     return "mixed weather", "🌤️"
 
 
-async def current_weather(lat: float, lon: float) -> Weather | None:
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "current": "temperature_2m,weather_code,is_day",
-        "daily": "sunrise,sunset",
-        "timezone": "auto",
-        "forecast_days": 1,
-    }
-    try:
-        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": USER_AGENT}) as client:
-            resp = await client.get("https://api.open-meteo.com/v1/forecast", params=params)
-        data = resp.json()
-        current, daily = data["current"], data["daily"]
-    except (httpx.HTTPError, KeyError, json.JSONDecodeError):
-        return None
+def weather_from_met_symbol(symbol: str) -> tuple[str, str]:
+    """MET Norway symbol codes look like 'lightrain_night' or 'partlycloudy_day'."""
+    base = symbol.split("_")[0]
+    if "thunder" in base:
+        return "thunderstorm", "⛈️"
+    if "snow" in base or "sleet" in base:
+        return "snow", "❄️"
+    if base in ("lightrain", "lightrainshowers"):
+        return "drizzle", "🌦️"
+    if "rain" in base:
+        return "rain", "🌧️"
+    if base == "fog":
+        return "foggy", "🌫️"
+    if base == "cloudy":
+        return "overcast", "☁️"
+    if base in ("fair", "partlycloudy"):
+        return "partly cloudy", "⛅"
+    if base == "clearsky":
+        return "clear sky", "☀️"
+    return "mixed weather", "🌤️"
 
-    summary, emoji = weather_from_code(int(current.get("weather_code", -1)))
-    is_day = bool(current.get("is_day", 1))
-    if emoji == "☀️" and not is_day:
+
+async def _open_meteo(client: httpx.AsyncClient, lat: float, lon: float) -> tuple[float, str, str]:
+    resp = await client.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={"latitude": lat, "longitude": lon, "current": "temperature_2m,weather_code"},
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"open-meteo answered {resp.status_code}: {resp.text[:200]}")
+    current = resp.json()["current"]
+    summary, emoji = weather_from_code(int(current["weather_code"]))
+    return float(current["temperature_2m"]), summary, emoji
+
+
+async def _met_norway(client: httpx.AsyncClient, lat: float, lon: float) -> tuple[float, str, str]:
+    resp = await client.get(
+        "https://api.met.no/weatherapi/locationforecast/2.0/compact",
+        params={"lat": round(lat, 4), "lon": round(lon, 4)},
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"met.no answered {resp.status_code}: {resp.text[:200]}")
+    now = resp.json()["properties"]["timeseries"][0]["data"]
+    symbol = now.get("next_1_hours", {}).get("summary", {}).get("symbol_code", "")
+    summary, emoji = weather_from_met_symbol(symbol)
+    return float(now["instant"]["details"]["air_temperature"]), summary, emoji
+
+
+async def current_weather(lat: float, lon: float, offset_min: int) -> Weather:
+    """Never fails: sun times are computed locally; conditions come from Open-Meteo,
+    then MET Norway as a backup (shared cloud IPs sometimes hit Open-Meteo's free limit)."""
+    local_time, sunrise, sunset, is_day = sun_info(lat, lon, offset_min)
+
+    temp_c, summary, emoji = None, "weather unknown", "🌤️"
+    async with httpx.AsyncClient(timeout=10, headers={"User-Agent": USER_AGENT}) as client:
+        for source in (_open_meteo, _met_norway):
+            try:
+                temp_c, summary, emoji = await source(client, lat, lon)
+                break
+            except (httpx.HTTPError, RuntimeError, KeyError, IndexError, ValueError) as e:
+                log.warning("weather source %s failed: %s", source.__name__, e)
+
+    if not is_day and emoji in ("☀️", "🌤️", "⛅"):
         emoji = "🌙"
     return Weather(
-        temp_c=current.get("temperature_2m", 0),
+        temp_c=temp_c,
         summary=summary,
         emoji=emoji,
         is_day=is_day,
-        local_time=current.get("time", "")[-5:],
-        sunrise=daily["sunrise"][0][-5:],
-        sunset=daily["sunset"][0][-5:],
+        local_time=local_time,
+        sunrise=sunrise,
+        sunset=sunset,
     )
 
 
@@ -377,18 +477,26 @@ async def make_quests(req: QuestRequest):
     count = max(1, min(req.count, 5))
     radius = max(300, min(req.radius_m, 3000))
 
+    # Older app builds don't send their timezone; longitude gives a rough guess
+    offset_min = req.tz_offset_min if req.tz_offset_min is not None else round(req.lon / 15 * 2) * 30
+
     places, weather = await asyncio.gather(
         nearby_places(req.lat, req.lon, radius),
-        current_weather(req.lat, req.lon),
+        current_weather(req.lat, req.lon, offset_min),
     )
+
+    # Parks and gardens are often closed and unlit at night. Asking the model to avoid them
+    # isn't reliable, so after dark it simply never sees any places to send people to.
+    if not weather.is_day:
+        places = []
 
     place_lines = "\n".join(
         f"[{i}] {p.name} ({p.kind}) - {p.distance_m} m {p.direction}" for i, p in enumerate(places)
     ) or "No mapped places found nearby. Use quests that work on any street, garden or open ground."
+    temperature = f", {weather.temp_c:.0f}°C" if weather.temp_c is not None else ""
     weather_line = (
-        f"{weather.summary}, {weather.temp_c:.0f}°C, local time {weather.local_time}, "
-        f"sunrise {weather.sunrise}, sunset {weather.sunset}, {'daytime' if weather.is_day else 'after dark'}"
-        if weather else "unknown"
+        f"{weather.summary}{temperature}, local time {weather.local_time}, sunrise {weather.sunrise}, "
+        f"sunset {weather.sunset}, {'daytime' if weather.is_day else 'AFTER DARK'}"
     )
 
     system = (
@@ -401,7 +509,9 @@ async def make_quests(req: QuestRequest):
         "Never require tripods, long exposure, zoom, or animals in flight. "
         "Safety rules: never ask anyone to trespass, climb, touch wildlife, enter water, or go far after dark. "
         "In rain or thunderstorm, keep quests close to home (doorstep, balcony, covered spots). "
-        "After dark, keep quests close, well-lit and about the night sky, lights or sounds. "
+        "After dark, keep quests close, well-lit and about the night sky, lights or sounds - and never send "
+        "anyone into a park, garden, forest or nature reserve (they are often closed and unlit at night): "
+        "set place_index to null and use the doorstep, balcony, rooftop or a lit street instead. "
         "Reply only with JSON: {\"quests\": [{\"emoji\": one emoji, \"title\": max 6 words, "
         "\"description\": 1-2 vivid sentences telling exactly where to go and what to look for, "
         "\"proof\": what the photo must clearly show (one short phrase), "
