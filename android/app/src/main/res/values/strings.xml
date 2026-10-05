@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">Side Quest</string>
+    <string name="tagline">Small adventures from the places around you. Get a quest, put the phone away, go.</string>
+
+    <string name="journal">Journal</string>
+    <string name="streak_summary">🔥 %1$d-day streak · %2$d quests done</string>
+    <string name="streak_none">No quests done yet. Your first one is waiting outside.</string>
+
+    <string name="weather_line">%1$s %2$.0f°C · %3$s</string>
+    <string name="sun_line">Sunrise %1$s · Sunset %2$s</string>
+
+    <string name="finding_location">Finding where you are…</string>
+    <string name="making_quests">Looking around your area and writing quests…</string>
+    <string name="new_quests">New quests</string>
+    <string name="new_quests_title">Replace today\'s quests?</string>
+    <string name="new_quests_message">Quests you haven\'t finished will be swapped for new ones. Completed ones stay in your journal.</string>
+    <string name="replace">Replace</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+
+    <string name="need_location">Side Quest needs your location to find parks, water and viewpoints near you. It is only used to build quests.</string>
+    <string name="grant_location">Allow location</string>
+    <string name="location_unavailable">Couldn\'t get your location. Turn on location and try again.</string>
+
+    <string name="quest_place">📍 %1$s · %2$s %3$s</string>
+    <string name="quest_anywhere">📍 Anywhere nearby</string>
+    <string name="quest_minutes">⏱ ~%1$d min</string>
+    <string name="quest_proof">📸 Proof: %1$s</string>
+    <string name="directions">Directions</string>
+    <string name="snap_proof">Snap proof</string>
+    <string name="completed">✅ Quest complete</string>
+    <string name="verified_at">📍 Verified at %1$s</string>
+
+    <string name="checking_location">Checking you\'re at %1$s…</string>
+    <string name="too_far_title">Not there yet 🚶</string>
+    <string name="too_far_message">You\'re %1$s from %2$s. Head over and snap your proof when you arrive.</string>
+    <string name="no_fix_title">Can\'t find you right now</string>
+    <string name="no_fix_message">Couldn\'t get a GPS fix. Step outside or near a window and try again.</string>
+    <string name="imprecise_title">Precise location needed</string>
+    <string name="imprecise_message">This quest needs to confirm you\'re at %1$s, but Side Quest only has approximate location (blurred to a few km). Allow precise location to continue.</string>
+    <string name="allow_precise">Allow precise</string>
+    <string name="location_off_title">Location is off</string>
+    <string name="location_off_message">Turn on location so Side Quest can confirm you reached %1$s.</string>
+    <string name="open_settings">Open settings</string>
+    <string name="need_location_for_proof">Location permission is needed to prove you reached the place.</string>
+    <string name="ok">OK</string>
+
+    <string name="checking_photo">The referee is looking at your photo…</string>
+    <string name="success_title">Quest complete! 🎉</string>
+    <string name="fail_title">Not quite yet</string>
+    <string name="try_again">Take another photo</string>
+    <string name="nice">Nice</string>
+    <string name="later">Later</string>
+    <string name="no_maps_app">No maps app found on this phone.</string>
+    <string name="no_camera_app">No camera app found on this phone.</string>
+
+    <string name="journal_title">Field journal</string>
+    <string name="journal_empty">Completed quests show up here with your photo.\nGo touch some grass. 🌱</string>
+    <string name="back">Back</string>
+</resources>
