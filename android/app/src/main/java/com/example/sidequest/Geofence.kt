@@ -18,7 +18,6 @@ object Geofence {
         "park", "garden", "nature reserve", "forest", "wood", "water", "meadow",
         "recreation ground", "village green", "grassland", "beach", "playground", "dog park"
     )
-
     private const val BIG_RADIUS_M = 400f
     private const val SMALL_RADIUS_M = 150f
     private const val MAX_ACCURACY_BONUS_M = 100f

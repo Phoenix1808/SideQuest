@@ -8,8 +8,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// Keeps today's quests and the journal on the phone, so reopening the app
-// doesn't spend another request and finished quests are never lost.
+
 class QuestStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("sidequest", Context.MODE_PRIVATE)
@@ -21,6 +20,9 @@ class QuestStore(context: Context) {
     fun saveBoard(board: QuestBoard) {
         prefs.edit { putString(KEY_BOARD, gson.toJson(board)) }
     }
+    var darkMode: Boolean
+        get() = prefs.getBoolean(KEY_DARK_MODE, false)
+        set(value) = prefs.edit { putBoolean(KEY_DARK_MODE, value) }
 
     fun journal(): List<JournalEntry> =
         prefs.getString(KEY_JOURNAL, null)
@@ -30,9 +32,6 @@ class QuestStore(context: Context) {
     fun addToJournal(entry: JournalEntry) {
         prefs.edit { putString(KEY_JOURNAL, gson.toJson(journal() + entry)) }
     }
-
-    // Days in a row with at least one finished quest, counting back from today
-    // (or from yesterday, so the streak isn't "broken" before today's walk).
     fun streak(): Int {
         val days = journal().map { it.day }.toSet()
         val cal = Calendar.getInstance()
@@ -49,6 +48,7 @@ class QuestStore(context: Context) {
     companion object {
         private const val KEY_BOARD = "board"
         private const val KEY_JOURNAL = "journal"
+        private const val KEY_DARK_MODE = "dark_mode"
 
         fun dayKey(date: Date = Date()): String =
             SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)

@@ -11,7 +11,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-// Plain Android LocationManager - no Google Play Services needed.
+
 object LocationHelper {
 
     fun isLocationOn(context: Context): Boolean {
@@ -19,8 +19,7 @@ object LocationHelper {
         return LocationManagerCompat.isLocationEnabled(manager)
     }
 
-    // For building quests: "roughly where am I?" A fix from the last few minutes is
-
+    // For building quests
     suspend fun current(context: Context): Location? = locate(
         context,
         maxAgeMs = 10 * 60 * 1000L,
@@ -28,8 +27,7 @@ object LocationHelper {
         staleIsOk = true
     )
 
-    // For proving you're at a place: "where am I right now, precisely?" Old fixes could be
-
+    // For proving we're at that place
     suspend fun fresh(context: Context): Location? = locate(
         context,
         maxAgeMs = 30 * 1000L,
@@ -60,7 +58,7 @@ object LocationHelper {
             val fix = withTimeoutOrNull(timeoutMs) { requestOnce(context, manager, provider) }
             if (fix != null) return fix
         }
-        // Quests can be built from an older fix; proof never can
+
         return if (staleIsOk) lastKnown else null
     }
 

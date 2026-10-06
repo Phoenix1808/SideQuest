@@ -15,6 +15,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -44,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusButton: MaterialButton
     private lateinit var questList: RecyclerView
     private lateinit var newQuestsButton: MaterialButton
+    private lateinit var themeButton: MaterialButton
 
     private lateinit var store: QuestStore
     private val adapter = QuestAdapter(
@@ -53,20 +55,16 @@ class MainActivity : AppCompatActivity() {
     )
     private var board: QuestBoard? = null
 
-    // The camera app may cause Android to recreate this activity, so these survive in onSaveInstanceState
     private var pendingQuestId: String? = null
     private var pendingPhotoPath: String? = null
     private var pendingVerifiedAt: String? = null
     private var askedForLocation = false
 
-    // Asked when building quests
     private val locationPermission =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
             if (result.values.any { it }) generateQuests() else showLocationNeeded()
         }
 
-    // Asked when proving you're at a place (the permission may have been revoked since,
-    // or only "approximate" was granted and we need to upgrade it to precise)
     private val proofLocationPermission =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
             val quest = pendingQuestId?.let(::questById)
@@ -91,8 +89,6 @@ class MainActivity : AppCompatActivity() {
             path?.let { File(it).delete() }
         }
     }
-
-    // Debug builds only (see QuestAdapter): lets you test the proof flow with an existing photo
     private val pickPhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val questId = pendingQuestId
         pendingQuestId = null
@@ -110,6 +106,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        store = QuestStore(this)
+        applyTheme(store.darkMode)
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -125,8 +125,8 @@ class MainActivity : AppCompatActivity() {
         statusButton = findViewById(R.id.statusButton)
         questList = findViewById(R.id.questList)
         newQuestsButton = findViewById(R.id.newQuestsButton)
+        themeButton = findViewById(R.id.themeButton)
 
-        store = QuestStore(this)
         questList.layoutManager = LinearLayoutManager(this)
         questList.adapter = adapter
 
@@ -139,6 +139,12 @@ class MainActivity : AppCompatActivity() {
 
         journalButton.setOnClickListener { startActivity(Intent(this, JournalActivity::class.java)) }
         newQuestsButton.setOnClickListener { confirmNewQuests() }
+
+        showThemeIcon(store.darkMode)
+        themeButton.setOnClickListener {
+            store.darkMode = !store.darkMode
+            applyTheme(store.darkMode)
+        }
 
         // Today's quests are kept, so reopening the app doesn't replace them
         val saved = store.loadBoard()
@@ -159,6 +165,20 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+
+
+    private fun applyTheme(dark: Boolean) {
+        AppCompatDelegate.setDefaultNightMode(
+            if (dark) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+        )
+    }
+
+    // The icon shows the current mode; the description (read by TalkBack) says what a tap does.
+    private fun showThemeIcon(dark: Boolean) {
+        themeButton.setIconResource(if (dark) R.drawable.ic_moon else R.drawable.ic_sun)
+        themeButton.contentDescription =
+            getString(if (dark) R.string.switch_to_light else R.string.switch_to_dark)
+    }
 
     private fun hasLocationPermission() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
@@ -231,9 +251,6 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
-
-    // ---------- showing things ----------
-
     private fun showBoard(newBoard: QuestBoard) {
         board = newBoard
         statusView.visibility = View.GONE
@@ -278,7 +295,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ---------- quest actions ----------
 
     private fun openDirections(quest: Quest) {
         val place = quest.place ?: return
@@ -299,8 +315,6 @@ class MainActivity : AppCompatActivity() {
             openCamera(quest, verifiedAt = null)   // "anywhere nearby" quests
             return
         }
-
-        // Permissions can be revoked in Settings at any time, so check right before using them
         if (!hasLocationPermission()) {
             pendingQuestId = quest.id
             proofLocationPermission.launch(

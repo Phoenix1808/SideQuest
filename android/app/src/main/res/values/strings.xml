@@ -3,6 +3,8 @@
     <string name="tagline">Small adventures from the places around you. Get a quest, put the phone away, go.</string>
 
     <string name="journal">Journal</string>
+    <string name="switch_to_dark">Switch to dark mode</string>
+    <string name="switch_to_light">Switch to light mode</string>
     <string name="streak_summary"> %1$d-day streak · %2$d quests done</string>
     <string name="streak_none">No quests done yet. Your first one is waiting outside.</string>
 

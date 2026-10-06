@@ -58,6 +58,8 @@ object ApiClient {
         return call(request, VerifyResponse::class.java)
     }
 
+    //deferred requests to backend
+    //coroutine for I/O operations and DB handling
     private suspend fun <T> call(request: Request, type: Class<T>): T = withContext(Dispatchers.IO) {
         try {
             client.newCall(request).execute().use { response ->
@@ -72,7 +74,7 @@ object ApiClient {
         }
     }
 
-    // FastAPI errors look like {"detail": "..."}
+    // FastAPI error:  {"detail": "..."}
     private fun errorDetail(text: String): String? = try {
         JsonParser.parseString(text).asJsonObject.get("detail")?.asString
     } catch (e: Exception) {

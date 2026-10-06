@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="primary">#81C784</color>
+    <color name="primary_dark">#A5D6A7</color>
+    <color name="primary_container">#1E3A20</color>
+    <color name="on_primary_container">#C8E6C9</color>
+    <color name="on_primary">#0B2E0F</color>
+    <color name="background">#121611</color>
+    <color name="surface">#1C211B</color>
+    <color name="text_primary">#E6EAE3</color>
+    <color name="text_secondary">#A3AD9E</color>
+    <color name="streak">#F2B84B</color>
+    <color name="done_bg">#1F2E1E</color>
+</resources>
