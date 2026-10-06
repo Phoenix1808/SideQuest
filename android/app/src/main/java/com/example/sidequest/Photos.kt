@@ -24,7 +24,7 @@ object Photos {
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 
     // Camera photos are 3-12 MB. Shrink to 1280px, fix the rotation, overwrite the
-    // file (it becomes the journal photo) and return the JPEG bytes for upload.
+
     fun shrink(file: File): ByteArray {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)

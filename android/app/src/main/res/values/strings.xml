@@ -3,7 +3,7 @@
     <string name="tagline">Small adventures from the places around you. Get a quest, put the phone away, go.</string>
 
     <string name="journal">Journal</string>
-    <string name="streak_summary">🔥 %1$d-day streak · %2$d quests done</string>
+    <string name="streak_summary"> %1$d-day streak · %2$d quests done</string>
     <string name="streak_none">No quests done yet. Your first one is waiting outside.</string>
 
     <string name="weather_line">%1$s %2$.0f°C · %3$s</string>
@@ -25,10 +25,10 @@
     <string name="quest_place">📍 %1$s · %2$s %3$s</string>
     <string name="quest_anywhere">📍 Anywhere nearby</string>
     <string name="quest_minutes">⏱ ~%1$d min</string>
-    <string name="quest_proof">📸 Proof: %1$s</string>
+    <string name="quest_proof"> Proof: %1$s</string>
     <string name="directions">Directions</string>
     <string name="snap_proof">Snap proof</string>
-    <string name="completed">✅ Quest complete</string>
+    <string name="completed"> Quest complete</string>
     <string name="verified_at">📍 Verified at %1$s</string>
 
     <string name="checking_location">Checking you\'re at %1$s…</string>

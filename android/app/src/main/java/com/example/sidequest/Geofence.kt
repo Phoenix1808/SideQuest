@@ -8,8 +8,8 @@ object Geofence {
     sealed interface Result {
         data object Arrived : Result
         data class TooFar(val meters: Int) : Result
-        data object NoFix : Result      // no GPS/network fix in time
-        data object Imprecise : Result  // only "approximate" location was granted
+        data object NoFix : Result
+        data object Imprecise : Result
     }
 
     // OpenStreetMap gives one centre point per place, but a park can be 600 m across,
@@ -22,8 +22,6 @@ object Geofence {
     private const val BIG_RADIUS_M = 400f
     private const val SMALL_RADIUS_M = 150f
     private const val MAX_ACCURACY_BONUS_M = 100f
-
-    // Android 12+ "approximate" location is blurred to ~2-3 km on purpose
     private const val IMPRECISE_ACCURACY_M = 500f
 
     fun check(here: Location?, place: Place): Result {
@@ -33,7 +31,6 @@ object Geofence {
         val meters = FloatArray(1)
         Location.distanceBetween(here.latitude, here.longitude, place.lat, place.lon, meters)
 
-        // GPS is never exact: give honest players the reported error margin (capped)
         val radius = if (place.kind in BIG_PLACES) BIG_RADIUS_M else SMALL_RADIUS_M
         val allowed = radius + here.accuracy.coerceAtMost(MAX_ACCURACY_BONUS_M)
 

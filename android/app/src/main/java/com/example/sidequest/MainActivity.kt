@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         outState.putBoolean(KEY_ASKED_LOCATION, askedForLocation)
     }
 
-    // ---------- getting quests ----------
+
 
     private fun hasLocationPermission() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==

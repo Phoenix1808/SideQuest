@@ -20,7 +20,7 @@ object LocationHelper {
     }
 
     // For building quests: "roughly where am I?" A fix from the last few minutes is
-    // plenty, and the network provider (Wi-Fi / cell towers) answers fast, even indoors.
+
     suspend fun current(context: Context): Location? = locate(
         context,
         maxAgeMs = 10 * 60 * 1000L,
@@ -29,7 +29,7 @@ object LocationHelper {
     )
 
     // For proving you're at a place: "where am I right now, precisely?" Old fixes could be
-    // from home, so they must be very recent. GPS first (5-20 m outdoors), network as backup.
+
     suspend fun fresh(context: Context): Location? = locate(
         context,
         maxAgeMs = 30 * 1000L,

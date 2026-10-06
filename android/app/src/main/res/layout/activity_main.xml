@@ -42,7 +42,7 @@
         android:paddingTop="4dp"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
-        tools:text="🔥 2-day streak · 5 quests done" />
+        tools:text=" 2-day streak · 5 quests done" />
 
     <!-- Weather -->
     <com.google.android.material.card.MaterialCardView
@@ -84,7 +84,7 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Loading / message / permission -->
+
     <LinearLayout
         android:id="@+id/statusView"
         android:layout_width="match_parent"
@@ -119,7 +119,7 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Quests -->
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/questList"
         android:layout_width="match_parent"
