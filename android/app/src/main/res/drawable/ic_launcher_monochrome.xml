@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ themed icon: the pin silhouette with the sprout cut out (evenOdd). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M54,79 L39.6,56.03 A17,17 0 1,1 68.4,56.03 Z M52.8,45 H55.2 V59 H52.8 Z M52.8,50 Q44,50,45,41 Q53,41,52.8,50 Z M55.2,48 Q56,37,63,37 Q64,46,55.2,48 Z" />
+</vector>

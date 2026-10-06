@@ -5,3 +5,7 @@
 .venv/
 __pycache__/
 *.pyc
+
+# IDE files (if the repo root is opened by mistake)
+.idea/
+*.iml
